@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Elevate</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: #f0f2f5;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            font-size: 2.2em;
+            color: #1a202c;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+        }
+        .column {
+            flex: 1;
+            min-width: 300px;
+            display: flex;
+            flex-direction: column;
+        }
+        .input-section, .output-section {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        h3 {
+            font-size: 1.3em;
+            color: #2d3748;
+            margin-bottom: 15px;
+        }
+        textarea {
+            width: 100%;
+            min-height: 150px;
+            max-height: 300px;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1em;
+            resize: vertical;
+            transition: border-color 0.2s ease;
+        }
+        textarea:focus {
+            border-color: #3182ce;
+            outline: none;
+            box-shadow: 0 0 5px rgba(49, 130, 206, 0.3);
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+            justify-content: flex-start;
+            align-items: center;
+        }
+        select, button {
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+        }
+        select {
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            color: #4a5568;
+        }
+        select:focus {
+            border-color: #3182ce;
+            outline: none;
+        }
+        button {
+            background: #3182ce;
+            color: #fff;
+            border: none;
+        }
+        button:hover {
+            background: #2b6cb0;
+            transform: translateY(-2px);
+        }
+        #copy-btn {
+            background: #38a169;
+        }
+        #copy-btn:hover {
+            background: #2f855a;
+        }
+        #result {
+            width: 100%;
+            min-height: 150px;
+            max-height: 300px;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #fff;
+            font-size: 1em;
+            color: #4a5568;
+            white-space: pre-wrap;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+        .loading {
+            opacity: 0.7;
+        }
+        .success-message {
+            color: #38a169;
+            font-size: 0.9em;
+            margin-left: 10px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .success-message.show {
+            opacity: 1;
+        }
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            .column {
+                min-width: 100%;
+            }
+            .input-section, .output-section {
+                padding: 15px;
+            }
+            textarea, #result {
+                min-height: 120px;
+            }
+            .controls {
+                flex-direction: column;
+                gap: 8px;
+            }
+            select, button {
+                width: 100%;
+            }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <h1>Text Elevate</h1>
+    <div class="container">
+        <div class="column">
+            <div class="input-section">
+                <h3>Input</h3>
+                <textarea id="input-text" placeholder="Enter text to rephrase..."></textarea>
+                <div class="controls">
+                    <select id="style-selector">
+                        {% for style_key, style_desc in styles.items() %}
+                            <option value="{{ style_key }}" title="{{ style_desc }}">{{ style_key|capitalize }}</option>
+                        {% endfor %}
+                    </select>
+                    <button id="rephrase-btn">Rephrase</button>
+                </div>
+            </div>
+        </div>
+        <div class="column">
+            <div class="output-section">
+                <h3>Output</h3>
+                <div id="result">Your rephrased text will appear here</div>
+                <div class="controls">
+                    <button id="copy-btn">Copy Output</button>
+                    <span id="copy-message" class="success-message">Copied to clipboard!</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.getElementById('rephrase-btn').addEventListener('click', async function() {
+            const inputText = document.getElementById('input-text').value;
+            const style = document.getElementById('style-selector').value;
+            const resultDiv = document.getElementById('result');
+            
+            if (!inputText.trim()) {
+                resultDiv.textContent = 'Please enter text to rephrase';
+                return;
+            }
+            
+            resultDiv.textContent = 'Rephrasing...';
+            resultDiv.classList.add('loading');
+            
+            try {
+                const response = await fetch('/rephrase', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sentence: inputText, style: style })
+                });
+                
+                if (!response.ok) throw new Error('Network response was not ok');
+                const data = await response.json();
+                resultDiv.textContent = data.rephrased || 'No rephrased text returned';
+            } catch (error) {
+                resultDiv.textContent = `Error: ${error.message}`;
+            } finally {
+                resultDiv.classList.remove('loading');
+            }
+        });
+
+        document.getElementById('copy-btn').addEventListener('click', function() {
+            const resultText = document.getElementById('result').textContent;
+            const invalidStates = [
+                'Your rephrased text will appear here',
+                'Please enter text to rephrase',
+                'Rephrasing...',
+                /^Error:/
+            ];
+            if (resultText && !invalidStates.some(state => state instanceof RegExp ? state.test(resultText) : state === resultText)) {
+                navigator.clipboard.writeText(resultText).then(() => {
+                    const copyMessage = document.getElementById('copy-message');
+                    copyMessage.classList.add('show');
+                    setTimeout(() => copyMessage.classList.remove('show'), 2000);
+                }).catch(err => console.error('Copy failed:', err));
+            }
+        });
+    </script>
+</body>
+</html>
