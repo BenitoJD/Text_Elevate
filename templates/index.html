@@ -225,13 +225,64 @@
                 'Rephrasing...',
                 /^Error:/
             ];
-            if (resultText && !invalidStates.some(state => state instanceof RegExp ? state.test(resultText) : state === resultText)) {
-                navigator.clipboard.writeText(resultText).then(() => {
-                    const copyMessage = document.getElementById('copy-message');
-                    copyMessage.classList.add('show');
-                    setTimeout(() => copyMessage.classList.remove('show'), 2000);
-                }).catch(err => console.error('Copy failed:', err));
-            }
+            function copyToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        // Modern browsers with Clipboard API
+        navigator.clipboard.writeText(text)
+            .then(() => {
+                showCopyMessage();
+            })
+            .catch(err => {
+                console.error('Clipboard API failed:', err);
+                fallbackCopy(text);
+            });
+    } else {
+        // Fallback for browsers without Clipboard API
+        fallbackCopy(text);
+    }
+}
+
+function fallbackCopy(text) {
+    try {
+        // Old-school method using textarea
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        
+        // Avoid scrolling to bottom
+        textArea.style.top = '0';
+        textArea.style.left = '0';
+        textArea.style.position = 'fixed';
+        
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        if (successful) {
+            showCopyMessage();
+        } else {
+            console.error('execCommand copy failed');
+        }
+    } catch (err) {
+        console.error('Fallback copy failed:', err);
+    }
+}
+
+function showCopyMessage() {
+    const copyMessage = document.getElementById('copy-message');
+    if (copyMessage) {
+        copyMessage.classList.add('show');
+        setTimeout(() => copyMessage.classList.remove('show'), 2000);
+    }
+}
+
+// Usage:
+if (resultText && !invalidStates.some(state => 
+    state instanceof RegExp ? state.test(resultText) : state === resultText)) {
+    copyToClipboard(resultText);
+}
         });
     </script>
 </body>
