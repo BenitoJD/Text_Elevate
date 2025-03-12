@@ -31,10 +31,10 @@ app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
 
 class Config:
-    MODEL_NAME = os.getenv('MODEL_NAME', 'Qwen/Qwen2-0.5B-Instruct')
+    MODEL_NAME = os.getenv('MODEL_NAME', 'Qwen/Qwen2.5-0.5B-Instruct')
     HOST = os.getenv('HOST', '0.0.0.0')
     PORT = int(os.getenv('PORT', 5019))
-    MAX_CONTENT_LENGTH = 16 * 1024  # 16KB max request size
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max request size
     CACHE_SIZE = 128
 
 app.config.from_object(Config)
@@ -72,7 +72,8 @@ except Exception as e:
     exit(1)
 
 rephrase_styles = {
-     "standard": "Improve grammar, clarity, and structure while preserving the original meaning.",
+    "fix-grammar": "Correct grammar, punctuation, and spelling errors while keeping the original style and meaning intact.",
+    "standard": "Improve grammar, clarity, and structure while preserving the original meaning.",
     "formal": "Make the text more formal, professional, and sophisticated.",
     "casual": "Make the text more casual, conversational, and friendly.",
     "concise": "Make the text more concise and to the point.",
@@ -89,7 +90,36 @@ rephrase_styles = {
     "follow-up-email": "Revise the text into a polite, structured follow-up message that reinforces prior communication and prompts a response.",
     "informal-email": "Make the text friendly yet professional, striking a balance for a relaxed but respectful email tone.",
     "request-email": "Shape the text into a clear, respectful request with a professional tone, encouraging a positive reply.",
-    "update-email": "Transform the text into a succinct, informative update with a professional structure, ideal for status reports or team notifications."
+    "update-email": "Transform the text into a succinct, informative update with a professional structure, ideal for status reports or team notifications.",
+    "simplify": "Break down complex ideas into simpler, easy-to-understand language, ideal for explaining technical concepts to non-experts.",
+    "debugging-tone": "Rephrase with a problem-solving focus, using a calm and methodical tone suitable for troubleshooting or explaining fixes.",
+    "code-comment": "Turn the text into a clear, concise, and descriptive style like a code comment for developers.",
+    "it-support-ticket": "Format the text as a clear, detailed, and professional IT support ticket description, including key details for quick resolution.",
+    "release-notes": "Rephrase the text into a structured, user-friendly format suitable for software release notes, highlighting features and fixes.",
+    "escalation-tone": "Adjust the text to sound urgent yet professional, suitable for escalating an issue to higher support tiers or management.",
+    "training-guide": "Revise the text into a step-by-step, instructional tone for creating user guides or developer training materials.",
+    "faq-style": "Rephrase the text into a question-and-answer format, concise and clear, for IT support FAQs or knowledge bases.",
+    "dev-handover": "Structure the text as a detailed, technical handover note for developers, focusing on key implementation details and next steps.",
+    "meeting-notes": "Condense the text into a clear, organized summary suitable for sharing after a technical meeting or sprint review.",
+    "incident-report": "Rephrase the text into a formal, factual, and detailed report style for documenting IT incidents or outages.",
+    "user-story": "Format the text as a concise Agile user story (e.g., 'As a [user], I want [goal] so that [benefit]') for development teams.",
+    "api-documentation": "Revise the text into a precise, structured format suitable for API docs, with technical details and examples.",
+    "change-request": "Shape the text into a formal, detailed request for system or code changes, including justification and impact.",
+    "root-cause-analysis": "Rephrase the text into an analytical, step-by-step breakdown for explaining the cause of an issue, aimed at technical teams.",
+    "status-update": "Turn the text into a brief, factual update on project or task progress, suitable for team syncs or dashboards.",
+    "rejection-email": "Craft the text into a polite, professional response declining a request or bug report, with clear reasoning.",
+    "onboarding-email": "Revise the text into a welcoming, informative message for new team members or users, with key details and next steps.",
+    "deprecation-notice": "Adjust the text into a clear, technical announcement about phasing out a feature or tool, with alternatives provided.",
+    "post-mortem": "Structure the text as a detailed, reflective summary of an event or failure, including lessons learned, for IT/dev teams.",
+    "customer-facing": "Rephrase the text to be polite, clear, and non-technical, ideal for communicating with end-users or clients.",
+    "sprint-goal": "Condense the text into a focused, motivating statement for a development sprint objective.",
+    "test-case": "Format the text as a structured test case with steps, expected results, and conditions, for QA or devs.",
+    "log-entry": "Rephrase the text into a brief, timestamp-ready format suitable for system or application logs.",
+    "motivational": "Revise the text to inspire and energize a team, with an upbeat tone for morale boosts.",
+    "knowledge-article": "Transform the text into a structured, informative knowledge base article with a clear problem, solution, and additional notes for IT support or users.",
+    "issue-fix-article": "Rephrase the text into a concise, step-by-step article focused on resolving a specific issue, including prerequisites and verification steps, for support teams.",
+    "create-documentation": "Revise the text into a detailed, well-organized documentation format with sections like overview, instructions, and troubleshooting, suitable for IT or dev reference.",
+    "free-style": "Adapt the text creatively based on context, with no strict guidelines."
 }
 
 @app.route('/', methods=['GET'])
@@ -108,8 +138,7 @@ def rephrase():
 
         if not original_text:
             return jsonify({'error': 'Sentence is required'}), 400
-        if len(original_text) > 1000:
-            return jsonify({'error': 'Text too long'}), 400
+        
         if style_key not in rephrase_styles:
             style_key = 'standard'
 
@@ -130,10 +159,10 @@ def rephrase():
         with torch.no_grad():
             generated_ids = model.generate(
                 model_inputs.input_ids,
-                max_new_tokens=256,
+                max_new_tokens=8192,
                 do_sample=True,
                 temperature=0.7,
-                top_p=0.9,
+                top_p=0.75,
                 pad_token_id=tokenizer.eos_token_id
             )
             
