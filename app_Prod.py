@@ -31,7 +31,7 @@ app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
 
 class Config:
-    MODEL_NAME = os.getenv('MODEL_NAME', 'Qwen/Qwen2.5-0.5B-Instruct')
+    MODEL_NAME = os.getenv('MODEL_NAME', 'Qwen/Qwen2.5-3B-Instruct')
     HOST = os.getenv('HOST', '0.0.0.0')
     PORT = int(os.getenv('PORT', 5019))
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max request size
@@ -119,7 +119,8 @@ rephrase_styles = {
     "knowledge-article": "Transform the text into a structured, informative knowledge base article with a clear problem, solution, and additional notes for IT support or users.",
     "issue-fix-article": "Rephrase the text into a concise, step-by-step article focused on resolving a specific issue, including prerequisites and verification steps, for support teams.",
     "create-documentation": "Revise the text into a detailed, well-organized documentation format with sections like overview, instructions, and troubleshooting, suitable for IT or dev reference.",
-    "free-style": "Adapt the text creatively based on context, with no strict guidelines."
+    "free-style": "Adapt the text creatively based on context, with no strict guidelines.",
+    "sql-precision": "Process the user’s SQL query with exactness—correct errors, craft new sql code, enhance performance, and explain as needed, adapting to context with a professional, focused edge."
 }
 
 @app.route('/', methods=['GET'])
@@ -159,10 +160,10 @@ def rephrase():
         with torch.no_grad():
             generated_ids = model.generate(
                 model_inputs.input_ids,
-                max_new_tokens=8192,
-                do_sample=True,
-                temperature=0.7,
-                top_p=0.75,
+                max_new_tokens=1000,
+                do_sample=False,
+                temperature=0.85,
+                top_p=0.5,
                 pad_token_id=tokenizer.eos_token_id
             )
             
